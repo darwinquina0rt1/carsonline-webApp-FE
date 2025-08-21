@@ -1,0 +1,234 @@
+/* Importar estilos globales */
+@import './global.css';
+
+/* Secciones generales */
+.featured-section {
+  padding: 4rem 0;
+}
+
+.vehicles-grid {
+  display: grid;
+  gap: 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+/* Estilos para el spinner de carga */
+.loading-spinner {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f4f6;
+  border-top: 4px solid var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Estilos para las tarjetas de vehículos */
+.vehicle-card {
+  background-color: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.vehicle-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
+}
+
+.vehicle-image {
+  position: relative;
+  height: 200px;
+  overflow: hidden;
+}
+
+.vehicle-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.vehicle-card:hover .vehicle-image img {
+  transform: scale(1.05);
+}
+
+.vehicle-badge {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background-color: var(--primary-color);
+  color: var(--light-text-color);
+  padding: 0.3rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+}
+
+/* Estilos para los badges de estado */
+.estado-badge {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  padding: 0.3rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.estado-disponible {
+  background-color: #10b981; /* Verde */
+}
+
+.estado-vendido {
+  background-color: #ef4444; /* Rojo */
+}
+
+.estado-en-mantenimiento {
+  background-color: #f59e0b; /* Amarillo/Naranja */
+}
+
+.vehicle-info {
+  padding: 1.5rem;
+}
+
+.vehicle-info h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  font-family: 'Inter', sans-serif;
+  color: var(--dark-text-color);
+}
+
+/* Estilos para detalles expandidos */
+.vehicle-details-expanded {
+  animation: slideDown 0.3s ease-out;
+}
+
+.vehicle-details-collapsed {
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 200px;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 1;
+    max-height: 200px;
+  }
+  to {
+    opacity: 0;
+    max-height: 0;
+  }
+}
+
+.vehicle-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  color: var(--secondary-color);
+  font-size: 0.9rem;
+  font-family: 'Inter', sans-serif;
+  margin-bottom: 1rem;
+}
+
+.vehicle-details span {
+  background-color: #f3f4f6;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  transition: background-color 0.2s ease;
+}
+
+.vehicle-details span:hover {
+  background-color: #e5e7eb;
+}
+
+/* Estilo especial para la etiqueta de marca */
+.brand-tag {
+  background-color: var(--primary-color) !important;
+  color: white !important;
+  font-weight: 600 !important;
+}
+
+.vehicle-price {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1rem;
+}
+
+.vehicle-price .price {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  font-family: 'Inter', sans-serif;
+}
+
+/* Estilos para el footer de la sección */
+.section-footer {
+  text-align: center;
+  margin-top: 3rem;
+}
+
+/* Estilos para mensajes de error */
+.error-message {
+  text-align: center;
+  color: #ef4444;
+  margin: 2rem 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .vehicles-grid {
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+  }
+  
+  .vehicle-info {
+    padding: 1rem;
+  }
+  
+  .vehicle-info h3 {
+    font-size: 1.1rem;
+  }
+  
+  .vehicle-price .price {
+    font-size: 1.25rem;
+  }
+  
+  .vehicle-details {
+    gap: 0.3rem;
+  }
+  
+  .vehicle-details span {
+    font-size: 0.75rem;
+    padding: 0.15rem 0.4rem;
+  }
+}

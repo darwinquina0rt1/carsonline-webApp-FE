@@ -1,3 +1,6 @@
+/* Importar estilos globales */
+@import './global.css';
+
 /* Reset y estilos base */
 * {
   margin: 0;
@@ -9,12 +12,6 @@
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   line-height: 1.6;
   color: #333;
-}
-
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 20px;
 }
 
 /* Header */
@@ -65,58 +62,7 @@
   gap: 15px;
 }
 
-/* Botones */
-.btn-primary {
-  background: #2563eb;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: background 0.3s ease;
-}
 
-.btn-primary:hover {
-  background: #1d4ed8;
-}
-
-.btn-secondary {
-  background: transparent;
-  color: #2563eb;
-  border: 2px solid #2563eb;
-  padding: 8px 18px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: all 0.3s ease;
-}
-
-.btn-secondary:hover {
-  background: #2563eb;
-  color: white;
-}
-
-.btn-outline {
-  background: transparent;
-  color: #2563eb;
-  border: 2px solid #2563eb;
-  padding: 10px 20px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: all 0.3s ease;
-}
-
-.btn-outline:hover {
-  background: #2563eb;
-  color: white;
-}
-
-.btn-large {
-  padding: 15px 30px;
-  font-size: 1.1rem;
-}
 
 /* Hero Section */
 .hero {
