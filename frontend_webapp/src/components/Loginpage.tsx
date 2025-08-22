@@ -4,6 +4,8 @@ type LoginProps = {
   onLogin: (email: string, password: string) => Promise<void>;
 };
 
+
+//funcón para la mejora de usestate para el componente de login
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -15,7 +17,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setError(null);
 
     if (!email || !password) {
-      setError("Por favor completa todos los campos.");
+      setError("Todos los campos son obligatorios...");
       return;
     }
 
@@ -23,7 +25,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       setLoading(true);
       await onLogin(email, password);
     } catch (err: any) {
-      setError(err.message || "Error al iniciar sesión");
+      setError(err.message || "No se pudo iniciar sesion");
     } finally {
       setLoading(false);
     }

@@ -31,11 +31,11 @@ const TopCarContainer: React.FC = () => {
       
       const response = await fetch('http://localhost:3005/api/vehicles');
       if (!response.ok) {
-        throw new Error('Error al cargar los vehículos');
+        throw new Error('Error al modificar vehiculo');
       }
       
       const data = await response.json();
-      console.log('Respuesta de la API:', data);
+      console.log('API Response:', data);
       
       // Manejar diferentes estructuras posibles de la respuesta
       let allVehicles: Vehicle[] = [];
@@ -57,7 +57,7 @@ const TopCarContainer: React.FC = () => {
           });
         }
       } else if (Array.isArray(data)) {
-        // Si la respuesta es directamente un array
+        // La respuesta es un array
         allVehicles = data;
       } else if (data.vehicles && Array.isArray(data.vehicles)) {
         // Si hay una propiedad vehicles en la raíz

@@ -1,6 +1,8 @@
 import React from 'react';
 import '../layouts/initialview.css';
 
+
+//función reutilizable para el manejo de la vista pricipal
 const InitialView: React.FC = () => {
   return (
     <section className="hero">

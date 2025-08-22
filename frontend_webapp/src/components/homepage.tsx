@@ -8,6 +8,8 @@ import FooterContainer from '../containers/flooter';
 
 const Homepage: React.FC = () => {
   return (
+
+    //se modifico la estructura de los componenetes, para optimizar el homepage
     <div className="homepage">
       {/* Header Container */}
       <HeaderContainer />

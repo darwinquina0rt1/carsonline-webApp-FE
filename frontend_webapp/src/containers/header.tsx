@@ -1,6 +1,8 @@
 import React from 'react';
 import '../layouts/header.css';
 
+
+//función reutilizable para el header 
 const HeaderContainer: React.FC = () => {
   return (
     <header className="header">
