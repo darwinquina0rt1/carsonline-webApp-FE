@@ -11,7 +11,65 @@ body {
   background-color: #ffffff;
 }
 
-#root {
-  width: 100%;
-  min-height: 100vh;
+:root {
+  --primary: #007bff;
+  --secondary: #6c757d;
+  --background: #f8f9fa;
+  --text: #212529;
+  --dark-bg: #121212;
+  --dark-text: #f0f0f0;
+}
+
+/* Botones con animación */
+button {
+  background-color: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+button:hover {
+  background-color: #0056b3;
+  transform: scale(1.05);
+}
+
+/* Modo oscuro */
+body.dark-mode {
+  background-color: var(--dark-bg);
+  color: var(--dark-text);
+}
+
+body.dark-mode button {
+  background-color: #333;
+  color: var(--dark-text);
+}
+
+body.dark-mode a {
+  color: var(--dark-text);
+}
+
+/* Sombra para tarjetas */
+.card {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  padding: 16px;
+  background-color: white;
+}
+
+/* Responsividad básica */
+@media (max-width: 768px) {
+  .hero-section {
+    flex-direction: column;
+    text-align: center;
+    padding: 20px;
+  }
+
+  .hero-buttons {
+    flex-direction: column;
+    gap: 12px;
+  }
 }

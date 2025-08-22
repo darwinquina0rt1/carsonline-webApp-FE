@@ -1,46 +1,89 @@
-/* Importar estilos globales */
-@import './global.css';
-
-/* Estilos para el encabezado */
 .header {
-  background-color: #fff;
-  padding: 1rem 0;
-  border-bottom: 1px solid var(--border-color);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  background-color: var(--background);
+  padding: 16px 32px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
 }
 
 .header-container {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 1rem;
+  flex-wrap: wrap;
 }
 
 .logo h1 {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--primary-color);
-  font-family: 'Inter', sans-serif;
+  font-size: 1.8rem;
+  color: var(--primary);
 }
 
-.nav a {
-  margin-left: 2rem;
-  color: var(--dark-text-color);
+.nav {
+  display: flex;
+  gap: 24px;
+}
+
+.nav-link {
   text-decoration: none;
+  color: var(--text);
   font-weight: 500;
   transition: color 0.3s ease;
-  font-family: 'Inter', sans-serif;
 }
 
-.nav a:hover {
-  color: var(--primary-color);
+.nav-link:hover {
+  color: var(--primary);
 }
 
-.header-actions .btn-secondary,
-.header-actions .btn-primary {
-  margin-left: 0.5rem;
+.header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
 }
 
+.btn-primary,
+.btn-secondary,
+.btn-theme-toggle {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
 
+.btn-primary {
+  background-color: var(--primary);
+  color: white;
+  border: none;
+}
+
+.btn-secondary {
+  background-color: transparent;
+  color: var(--primary);
+  border: 2px solid var(--primary);
+}
+
+.btn-theme-toggle {
+  background-color: var(--secondary);
+  color: white;
+  border: none;
+}
+
+.btn-primary:hover,
+.btn-secondary:hover,
+.btn-theme-toggle:hover {
+  transform: scale(1.05);
+}
+
+/* Modo oscuro */
+body.dark-mode .header {
+  background-color: #1e1e1e;
+}
+
+body.dark-mode .nav-link {
+  color: var(--dark-text);
+}
+
+body.dark-mode .logo h1 {
+  color: var(--dark-text);
+}

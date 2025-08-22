@@ -1,9 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import '../layouts/header.css';
 
-
-//función reutilizable para el header 
 const HeaderContainer: React.FC = () => {
+  const [dark, setDark] = useState(false);
+
+  const toggleTheme = () => {
+    document.body.classList.toggle('dark-mode');
+    setDark(!dark);
+  };
+
   return (
     <header className="header">
       <div className="header-container">
@@ -19,6 +24,9 @@ const HeaderContainer: React.FC = () => {
         <div className="header-actions">
           <button className="btn-secondary">Iniciar Sesión</button>
           <button className="btn-primary">Registrarse</button>
+          <button className="btn-theme-toggle" onClick={toggleTheme}>
+            {dark ? '☀️ Claro' : '🌙 Oscuro'}
+          </button>
         </div>
       </div>
     </header>

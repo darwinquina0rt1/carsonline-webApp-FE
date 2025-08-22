@@ -1,0 +1,30 @@
+{
+  "name": "carsonline-webapp-fe",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/darwinquina0rt1/carsonline-webApp-FE.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/darwinquina0rt1/carsonline-webApp-FE/issues"
+  },
+  "homepage": "https://github.com/darwinquina0rt1/carsonline-webApp-FE#readme",
+  "description": "",
+  "dependencies": {
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.10",
+    "@types/react-dom": "^19.1.7",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.3"
+  }
+}
