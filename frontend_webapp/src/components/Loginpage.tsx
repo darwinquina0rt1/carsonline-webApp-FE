@@ -1,80 +1,101 @@
 import React, { useState } from "react";
+import LoginForm from "../containers/login/form";
+import CreateUsers from "../containers/login/createusers";
+import { validateAndLogin } from "../services/userService";
+import { logUserLogin, logAuthError } from "../utils/logger";
 
 type LoginProps = {
   onLogin: (email: string, password: string) => Promise<void>;
 };
 
-
-//funcón para la mejora de usestate para el componente de login
+// Componente de página de login que usa el nuevo formulario
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [showCreateAccount, setShowCreateAccount] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-
-    if (!email || !password) {
-      setError("Todos los campos son obligatorios...");
-      return;
-    }
-
+  // Manejador para el login exitoso
+  const handleLoginSuccess = async (email: string, password: string) => {
     try {
-      setLoading(true);
-      await onLogin(email, password);
-    } catch (err: any) {
-      setError(err.message || "No se pudo iniciar sesion");
-    } finally {
-      setLoading(false);
+      // Usar el servicio de usuarios para validar y hacer login
+      const result = await validateAndLogin(email, password, false);
+      
+      if (result.isValid && result.user) {
+        // Llamar a la función onLogin original
+        await onLogin(result.user.email, '');
+        
+        // Log seguro usando el sistema de logging
+        logUserLogin({
+          email: result.user.email,
+          username: result.user.username,
+          role: result.user.role
+        });
+        
+        // NO loggear información sensible como IDs internos
+      } else {
+        logAuthError(result.error || 'Error desconocido');
+      }
+    } catch (error) {
+      console.error('Error inesperado en login:', error);
     }
   };
 
+  // Manejador para errores de login
+  const handleLoginError = (error: string) => {
+    logAuthError(error);
+    // Aquí puedes mostrar notificaciones o manejar errores específicos
+  };
+
+  // Manejador para cuando se crea un usuario exitosamente
+  const handleUserCreated = () => {
+    // Cambiar de vuelta al formulario de login
+    setShowCreateAccount(false);
+    // Aquí podrías mostrar un mensaje de éxito
+    alert('Usuario creado exitosamente. Ahora puedes iniciar sesión.');
+  };
+
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gray-100">
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white p-8 rounded-2xl shadow-md w-full max-w-sm"
-      >
-        <h2 className="text-2xl font-bold mb-6 text-center">Iniciar Sesión</h2>
-
-        {error && (
-          <p className="bg-red-100 text-red-700 p-2 rounded mb-4 text-sm">
-            {error}
-          </p>
+    <div 
+      className="flex justify-end items-center min-h-screen pr-8"
+      style={{
+        backgroundImage: 'url(https://i.pinimg.com/736x/67/ca/ae/67caae04bce35f2bf9d30c5641f1996e.jpg)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        width: '100vw',
+        height: '100vh',
+        margin: 0,
+        padding: 0,
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0
+      }}
+    >
+      <div className="w-auto">
+        {showCreateAccount ? (
+          // Mostrar formulario de crear cuenta
+          <div>
+            <CreateUsers onUserCreated={handleUserCreated} />
+            <div className="text-center mt-4">
+              <button
+                onClick={() => setShowCreateAccount(false)}
+                className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
+              >
+                ← Volver al Login
+              </button>
+            </div>
+          </div>
+        ) : (
+          // Mostrar formulario de login
+          <LoginForm
+            onLoginSuccess={handleLoginSuccess}
+            onLoginError={handleLoginError}
+            onCreateAccount={() => setShowCreateAccount(true)}
+            useHashedLogin={false}
+            className=""
+          />
         )}
-
-        <div className="mb-4">
-          <label className="block text-gray-700 mb-1">Correo</label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring focus:ring-blue-300"
-            placeholder="ejemplo@correo.com"
-          />
-        </div>
-
-        <div className="mb-6">
-          <label className="block text-gray-700 mb-1">Contraseña</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring focus:ring-blue-300"
-            placeholder="********"
-          />
-        </div>
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
-        >
-          {loading ? "Ingresando..." : "Ingresar"}
-        </button>
-      </form>
+      </div>
     </div>
   );
 };

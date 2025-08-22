@@ -6,13 +6,16 @@ import TopCarContainer from '../containers/topcar';
 import ServicesContainer from '../containers/services';
 import FooterContainer from '../containers/flooter';
 
-const Homepage: React.FC = () => {
-  return (
+interface HomepageProps {
+  onLogout: () => void;
+}
 
+const Homepage: React.FC<HomepageProps> = ({ onLogout }) => {
+  return (
     //se modifico la estructura de los componenetes, para optimizar el homepage
     <div className="homepage">
       {/* Header Container */}
-      <HeaderContainer />
+      <HeaderContainer onLogout={onLogout} />
 
       {/* Initial View Container */}
       <InitialView />

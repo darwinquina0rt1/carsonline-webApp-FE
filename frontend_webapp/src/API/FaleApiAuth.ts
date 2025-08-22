@@ -1,11 +1,33 @@
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
+import { API_CONFIG, buildApiUrl } from '../config/api';
 
 export type HashAlgo = "MD5" | "SHA256" | "BCRYPT";
 export type VehicleStatus = "DISPONIBLE" | "VENDIDO" | "MANTENIMIENTO";
 
-export type AuthOk = { ok: true; token: string; user?: { id: number; email: string; name?: string } };
-export type AuthFail = { ok: false; msg: string };
+// Tipos para tu formato de API específico
+export type AuthOk = { 
+  success: true; 
+  message: string;
+  data: {
+    loginTime: string;
+    user: { 
+      _id?: string;
+      id?: number; 
+      email: string; 
+      username?: string;
+      name?: string;
+      role?: string;
+    };
+    token?: string;
+  };
+};
+
+export type AuthFail = { 
+  success: false; 
+  message: string;
+  data?: any;
+};
+
 export type AuthResponse = AuthOk | AuthFail;
 
 export type VehiclesResponse =
@@ -25,7 +47,8 @@ async function apiFetch<T>(
   if (!headers.has("Content-Type") && opts.body) headers.set("Content-Type", "application/json");
   if (opts.authToken) headers.set("Authorization", `Bearer ${opts.authToken}`);
 
-  const res = await fetch(`${API_URL}${path}`, { ...opts, headers });
+  const url = buildApiUrl(path);
+  const res = await fetch(url, { ...opts, headers });
   const data = (await res.json()) as T;
 
   if (!res.ok) return data;
@@ -67,8 +90,16 @@ export function loginHashed(params: { email: string; password: string }) {
   });
 }
 
+// Función específica para el login usando tu endpoint
+export function loginUser(params: { email: string; password: string }) {
+  return apiFetch<AuthResponse>("/auth/login", {
+    method: "POST",
+    body: JSON.stringify(params),
+  });
+}
+
 export function beginGoogleLogin() {
-  window.location.href = `${API_URL}/auth/google`;
+  window.location.href = `${API_CONFIG.BASE_URL}/auth/google`;
 }
 
 

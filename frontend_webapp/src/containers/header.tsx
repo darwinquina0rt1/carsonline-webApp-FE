@@ -1,12 +1,20 @@
 import React, { useState } from 'react';
 import '../layouts/header.css';
 
-const HeaderContainer: React.FC = () => {
+interface HeaderContainerProps {
+  onLogout: () => void;
+}
+
+const HeaderContainer: React.FC<HeaderContainerProps> = ({ onLogout }) => {
   const [dark, setDark] = useState(false);
 
   const toggleTheme = () => {
     document.body.classList.toggle('dark-mode');
     setDark(!dark);
+  };
+
+  const handleLogout = () => {
+    onLogout();
   };
 
   return (
@@ -22,10 +30,11 @@ const HeaderContainer: React.FC = () => {
           <a href="#contacto" className="nav-link">Contacto</a>
         </nav>
         <div className="header-actions">
-          <button className="btn-secondary">Iniciar Sesión</button>
-          <button className="btn-primary">Registrarse</button>
           <button className="btn-theme-toggle" onClick={toggleTheme}>
             {dark ? '☀️ Claro' : '🌙 Oscuro'}
+          </button>
+          <button className="btn-logout" onClick={handleLogout}>
+            🚪 Cerrar Sesión
           </button>
         </div>
       </div>
