@@ -106,7 +106,7 @@ const TopCarContainer: React.FC = () => {
         <div className="container">
           <div className="section-header">
             <h2>Vehículos Destacados</h2>
-            <p>Cargando vehículos...</p>
+            <p>obteniendo vehículos...</p>
           </div>
           <div className="loading-spinner">
             <div className="spinner"></div>
