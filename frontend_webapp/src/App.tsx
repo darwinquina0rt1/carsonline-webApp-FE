@@ -20,7 +20,7 @@ function App() {
     checkAuth();
   }, []);
 
-  // Manejador para el login exitoso
+  // Manejador para el login exitoso (tradicional)
   const handleLogin = async (email: string, password: string) => {
     try {
       logger.logInfo('Login exitoso en App.tsx, estableciendo autenticación...');
@@ -29,6 +29,20 @@ function App() {
       logger.logInfo('Estado de autenticación establecido a true');
     } catch (error) {
       logger.logError('Error en login:', error);
+      setIsAuthenticated(false);
+    }
+  };
+
+  // Manejador específico para login con Google
+  const handleGoogleLogin = async (email: string) => {
+    try {
+      logger.logInfo('Login exitoso con Google en App.tsx, estableciendo autenticación...');
+      // Para Google, el token ya está guardado en localStorage por handleGoogleLogin
+      // Solo necesitamos actualizar el estado de autenticación
+      setIsAuthenticated(true);
+      logger.logInfo('Estado de autenticación establecido a true para Google');
+    } catch (error) {
+      logger.logError('Error en login con Google:', error);
       setIsAuthenticated(false);
     }
   };
@@ -58,7 +72,7 @@ function App() {
       {isAuthenticated ? (
         <Homepage onLogout={handleLogout} />
       ) : (
-        <Login onLogin={handleLogin} />
+        <Login onLogin={handleLogin} onGoogleLogin={handleGoogleLogin} />
       )}
     </div>
   );

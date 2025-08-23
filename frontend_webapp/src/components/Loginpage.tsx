@@ -6,13 +6,14 @@ import { logUserLogin, logAuthError } from "../utils/logger";
 
 type LoginProps = {
   onLogin: (email: string, password: string) => Promise<void>;
+  onGoogleLogin?: (email: string) => Promise<void>;
 };
 
 // Componente de página de login que usa el nuevo formulario
-const Login: React.FC<LoginProps> = ({ onLogin }) => {
+const Login: React.FC<LoginProps> = ({ onLogin, onGoogleLogin }) => {
   const [showCreateAccount, setShowCreateAccount] = useState(false);
 
-  // Manejador para el login exitoso
+  // Manejador para el login exitoso (tradicional)
   const handleLoginSuccess = async (email: string, password: string) => {
     try {
       // Usar el servicio de usuarios para validar y hacer login
@@ -35,6 +36,29 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       }
     } catch (error) {
       console.error('Error inesperado en login:', error);
+    }
+  };
+
+  // Manejador específico para login con Google
+  const handleGoogleLoginSuccess = async (email: string) => {
+    try {
+      // Para Google, no necesitamos validar contraseña, solo llamar al callback
+      if (onGoogleLogin) {
+        await onGoogleLogin(email);
+      } else {
+        // Si no hay callback específico para Google, usar el normal
+        await onLogin(email, '');
+      }
+      
+      // Log seguro usando el sistema de logging
+      logUserLogin({
+        email: email,
+        username: email.split('@')[0], // Usar parte del email como username
+        role: 'user'
+      });
+      
+    } catch (error) {
+      console.error('Error inesperado en login con Google:', error);
     }
   };
 
@@ -89,6 +113,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           // Mostrar formulario de login
           <LoginForm
             onLoginSuccess={handleLoginSuccess}
+            onGoogleLoginSuccess={handleGoogleLoginSuccess}
             onLoginError={handleLoginError}
             onCreateAccount={() => setShowCreateAccount(true)}
             useHashedLogin={false}

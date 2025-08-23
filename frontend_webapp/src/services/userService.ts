@@ -1,6 +1,5 @@
 import { loginBasic, loginHashed, registerInsecure, registerHashed, loginUser } from '../API/FaleApiAuth';
 import type { AuthResponse, HashAlgo } from '../API/FaleApiAuth';
-import { setAuthToken, removeAuthToken } from '../config/api';
 
 // Tipos para el servicio de usuarios
 export interface User {
@@ -44,7 +43,7 @@ class UserService {
 
   // Validar si el usuario está autenticado
   public isAuthenticated(): boolean {
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('token');
     return !!token && !!this.currentUser;
   }
 
@@ -78,7 +77,7 @@ class UserService {
       if (response.success && response.data?.user) {
         // Guardar token si existe en la respuesta
         if (response.data.token) {
-          setAuthToken(response.data.token);
+          localStorage.setItem('token', response.data.token);
         }
         
         // Sanitizar y guardar información del usuario
@@ -147,7 +146,7 @@ class UserService {
       if (response.success && response.data?.user) {
         // Guardar token si existe en la respuesta
         if (response.data.token) {
-          setAuthToken(response.data.token);
+          localStorage.setItem('token', response.data.token);
         }
         
         // Sanitizar y guardar información del usuario
@@ -227,7 +226,7 @@ class UserService {
       if (response.ok && data.success) {
         // Guardar token si existe en la respuesta
         if (data.token) {
-          setAuthToken(data.token);
+          localStorage.setItem('token', data.token);
         }
         
         // Sanitizar y guardar información del usuario
@@ -258,7 +257,7 @@ class UserService {
   // Verificar si el token es válido (opcional - para validación adicional)
   public async validateToken(): Promise<boolean> {
     try {
-      const token = localStorage.getItem('authToken');
+      const token = localStorage.getItem('token');
       if (!token) {
         return false;
       }
@@ -273,7 +272,8 @@ class UserService {
 
   // Cerrar sesión
   public logout(): void {
-    removeAuthToken();
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
     this.currentUser = null;
   }
 
@@ -315,7 +315,7 @@ class UserService {
   // Obtener información del usuario desde el token (si el backend lo soporta)
   public async getUserInfo(): Promise<User | null> {
     try {
-      const token = localStorage.getItem('authToken');
+      const token = localStorage.getItem('token');
       if (!token) {
         return null;
       }
