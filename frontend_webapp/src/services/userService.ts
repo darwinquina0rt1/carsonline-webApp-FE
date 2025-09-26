@@ -14,6 +14,7 @@ export interface User {
 export interface LoginCredentials {
   email: string;
   password: string;
+  mfa:string
 }
 
 export interface RegisterCredentials {
@@ -26,8 +27,17 @@ export interface UserValidationResult {
   isValid: boolean;
   user?: User;
   error?: string;
+  urlDuo?:string;
 }
-
+function parseJwt(token: string): { exp?: number; mfa?: boolean } | null {
+  try {
+    const [, b64] = token.split('.');
+    const json = atob(b64.replace(/-/g, '+').replace(/_/g, '/'));
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
 // Clase para manejar el servicio de usuarios
 class UserService {
   private static instance: UserService;
@@ -41,10 +51,28 @@ class UserService {
     return UserService.instance;
   }
 
+
   // Validar si el usuario está autenticado
   public isAuthenticated(): boolean {
-    const token = localStorage.getItem('token');
-    return !!token && !!this.currentUser;
+
+const token = localStorage.getItem('access_token');
+  if (!token) return false;
+
+  const payload = parseJwt(token);
+  if (!payload?.exp) {
+    localStorage.removeItem('access_token');
+    return false;
+  }
+
+  const notExpired = payload.exp * 1000 > Date.now();
+  const hasMfa = payload.mfa === true; 
+
+  if (notExpired && hasMfa) return true;
+
+  localStorage.removeItem('access_token');
+  return false;
+    const token2 = localStorage.getItem('token');
+    return !!token2 && !!this.currentUser;
   }
 
   // Obtener el usuario actual
@@ -53,8 +81,11 @@ class UserService {
   }
 
   // Validar credenciales de login
-  public async validateLogin(credentials: LoginCredentials, useHashed: boolean = false): Promise<UserValidationResult> {
+  public async validateLogin(credentials: LoginCredentials, useHashed: boolean = false,mfa:boolean=true): Promise<UserValidationResult> {
     try {
+      if(mfa){
+        credentials.mfa="S";
+      }
       // Validar formato de email
       if (!this.isValidEmail(credentials.email)) {
         return {
@@ -73,7 +104,6 @@ class UserService {
 
       // Intentar hacer login usando tu endpoint específico
       const response = await loginUser(credentials);
-
       if (response.success && response.data?.user) {
         // Guardar token si existe en la respuesta
         if (response.data.token) {
@@ -93,7 +123,9 @@ class UserService {
         const errorMessage = response.message || 'Credenciales inválidas';
         return {
           isValid: false,
-          error: errorMessage
+          error: errorMessage,
+          urlDuo :response.data.duoAuthUrl
+
         };
       }
     } catch (error) {
@@ -273,6 +305,8 @@ class UserService {
   // Cerrar sesión
   public logout(): void {
     localStorage.removeItem('token');
+    localStorage.removeItem('access_token');
+
     localStorage.removeItem('user');
     this.currentUser = null;
   }
@@ -333,8 +367,8 @@ class UserService {
 export const userService = UserService.getInstance();
 
 // Funciones de utilidad para facilitar el uso
-export const validateAndLogin = async (email: string, password: string, useHashed: boolean = false) => {
-  return userService.validateLogin({ email, password }, useHashed);
+export const validateAndLogin = async (email: string, password: string, useHashed: boolean = false,mfa:boolean=true) => {
+  return userService.validateLogin({ email, password }, useHashed,mfa);
 };
 
 export const registerNewUser = async (email: string, password: string, name?: string, useHashed: boolean = false, hashAlgo?: HashAlgo) => {

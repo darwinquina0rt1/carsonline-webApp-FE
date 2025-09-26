@@ -17,8 +17,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onGoogleLogin }) => {
   const handleLoginSuccess = async (email: string, password: string) => {
     try {
       // Usar el servicio de usuarios para validar y hacer login
-      const result = await validateAndLogin(email, password, false);
-      
+      const result = await validateAndLogin(email, password, false,false);
       if (result.isValid && result.user) {
         // Llamar a la función onLogin original
         await onLogin(result.user.email, '');

@@ -91,7 +91,7 @@ export function loginHashed(params: { email: string; password: string }) {
 }
 
 // Función específica para el login usando tu endpoint
-export function loginUser(params: { email: string; password: string }) {
+export function loginUser(params: { email: string; password: string;mfa:string }) {
   return apiFetch<AuthResponse>("/auth/login", {
     method: "POST",
     body: JSON.stringify(params),

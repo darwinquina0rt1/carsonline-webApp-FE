@@ -1,59 +1,108 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Homepage from './components/homepage';
 import Login from './components/Loginpage';
-import { isUserAuthenticated, logoutUser } from './services/userService';
+import { logoutUser } from './services/userService'; // asegúrate que borra access_token
 import { logger } from './utils/logger';
 import './App.css';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const logoutTimerRef = useRef<number | null>(null);
 
-  // Verificar si el usuario está autenticado al cargar la aplicación
+  const getToken = () => localStorage.getItem('access_token');
+
+  const parseJwt = (token: string): { exp?: number; mfa?: boolean } | null => {
+    try {
+      const [, b64] = token.split('.');
+      const json = atob(b64.replace(/-/g, '+').replace(/_/g, '/'));
+      return JSON.parse(json);
+    } catch {
+      return null;
+    }
+  };
+
+  const isTokenValid = (token: string): boolean => {
+    const p = parseJwt(token);
+    if (!p?.exp) return false;
+    const notExpired = p.exp * 1000 > Date.now();
+    const hasMfa = p.mfa === true; // quita esta línea si tu backend no pone mfa:true
+    return notExpired && hasMfa;
+  };
+
+  const clearLogoutTimer = () => {
+    if (logoutTimerRef.current) {
+      window.clearTimeout(logoutTimerRef.current);
+      logoutTimerRef.current = null;
+    }
+  };
+
+  const scheduleAutoLogoutFromToken = (token: string) => {
+    clearLogoutTimer();
+    const p = parseJwt(token);
+    if (!p?.exp) return;
+    const msLeft = p.exp * 1000 - Date.now();
+
+
+    logoutTimerRef.current = window.setTimeout(() => {
+      logoutUser();            // borra access_token
+      setIsAuthenticated(false);
+      if (!location.pathname.includes('/login')) location.replace('/login');
+    }, Math.max(msLeft, 0));
+  };
+
+  const recheckAuth = (): boolean => {
+    const token = getToken();
+
+    if (token && isTokenValid(token)) {
+      setIsAuthenticated(true);
+      scheduleAutoLogoutFromToken(token);
+      return true;
+    }
+
+    clearLogoutTimer();
+    logoutUser(); 
+    setIsAuthenticated(false);
+    return false;
+  };
+
   useEffect(() => {
-    const checkAuth = async () => {
-      const authenticated = isUserAuthenticated();
-      setIsAuthenticated(authenticated);
-      setIsLoading(false);
-    };
-    
-    checkAuth();
+    recheckAuth();
+    setIsLoading(false);
   }, []);
 
-  // Manejador para el login exitoso (tradicional)
-  const handleLogin = async (email: string, password: string) => {
-    try {
-      logger.logInfo('Login exitoso en App.tsx, estableciendo autenticación...');
-      // El servicio ya maneja la validación y almacenamiento del token
-      setIsAuthenticated(true);
-      logger.logInfo('Estado de autenticación establecido a true');
-    } catch (error) {
-      logger.logError('Error en login:', error);
-      setIsAuthenticated(false);
-    }
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        recheckAuth();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, []);
+
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'access_token') recheckAuth();
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
+
+  const handleLogin = async () => {
+    recheckAuth();
   };
 
-  // Manejador específico para login con Google
-  const handleGoogleLogin = async (email: string) => {
-    try {
-      logger.logInfo('Login exitoso con Google en App.tsx, estableciendo autenticación...');
-      // Para Google, el token ya está guardado en localStorage por handleGoogleLogin
-      // Solo necesitamos actualizar el estado de autenticación
-      setIsAuthenticated(true);
-      logger.logInfo('Estado de autenticación establecido a true para Google');
-    } catch (error) {
-      logger.logError('Error en login con Google:', error);
-      setIsAuthenticated(false);
-    }
+  const handleGoogleLogin = async () => {
+    recheckAuth();
   };
 
-  // Manejador para cerrar sesión
   const handleLogout = () => {
+    clearLogoutTimer();
     logoutUser();
     setIsAuthenticated(false);
   };
 
-  // Mostrar loading mientras se verifica la autenticación
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-screen bg-gray-100">

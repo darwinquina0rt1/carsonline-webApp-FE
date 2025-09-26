@@ -23,6 +23,32 @@ interface FormErrors {
   general?: string;
 }
 
+const saveToken = (token: string) => localStorage.setItem('access_token', token);
+const clearSession = () => localStorage.removeItem('access_token');
+
+let logoutTimer: number | undefined;
+function scheduleAutoLogout(token: string) {
+  try {
+    const [_, payloadB64] = token.split('.');
+    const payloadJson = atob(payloadB64.replace(/-/g, '+').replace(/_/g, '/'));
+    const payload = JSON.parse(payloadJson) as { exp?: number };
+    const msLeft = (payload.exp! * 1000) - Date.now();
+    if (logoutTimer) window.clearTimeout(logoutTimer);
+    logoutTimer = window.setTimeout(() => {
+      clearSession();
+      // fuerza login al expirar (2 min)
+      window.location.replace('/login');
+    }, Math.max(msLeft, 0));
+  } catch {
+  }
+}
+
+function cleanQueryParams() {
+  const url = new URL(window.location.href);
+  url.search = '';
+  window.history.replaceState({}, '', url.toString());
+}
+
 const LoginForm: React.FC<LoginFormProps> = ({
   onLoginSuccess,
   onGoogleLoginSuccess,
@@ -31,17 +57,82 @@ const LoginForm: React.FC<LoginFormProps> = ({
   useHashedLogin = false,
   className = ''
 }) => {
-  const [formData, setFormData] = useState<FormData>({
-    email: '',
-    password: ''
-  });
-  
+  const [formData, setFormData] = useState<FormData>({ email: '', password: '' });
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false); // evita doble submit
+const getToken = () => localStorage.getItem('access_token') ?? null;
 
-  // Validación de email
+function isJwtValid(token: string): boolean {
+  try {
+    const [, payloadB64] = token.split('.');
+    const json = atob(payloadB64.replace(/-/g, '+').replace(/_/g, '/'));
+    const payload = JSON.parse(json) as { exp?: number; mfa?: boolean };
+    if (!payload?.exp) return false;
+    const notExpired = payload.exp * 1000 > Date.now();
+    const hasMfa = payload.mfa === true; 
+    return notExpired && hasMfa;
+  } catch {
+    return false;
+  }
+}
+
+  useEffect(() => {
+  let cancelado = false;
+
+  const procesarCallback = async () => {
+
+     const existing = getToken();
+     
+    
+    const params = new URLSearchParams(window.location.search);
+    const mfa = params.get('mfa');
+    const token = params.get('token');
+
+    
+    if (!mfa) return; 
+
+    if (mfa === 'ok' && token) {
+      saveToken(token);
+      scheduleAutoLogout(token);
+      cleanQueryParams();
+
+      const email = localStorage.getItem('user') ?? '';
+      const pass  = localStorage.getItem('puser') ?? '';
+
+      try {
+    //   if (existing && isJwtValid(existing)) {
+    //   scheduleAutoLogout(existing);
+    //   // window.location.replace('/');
+    //   return;
+    // }
+        await validateAndLogin?.(email, pass,useHashedLogin,false);
+                await onLoginSuccess?.(email, pass);
+                window.location.reload()
+        setFormData({ email: '', password: '' });
+      } catch (e) {
+        console.error('onLoginSuccess falló:', e);
+      }
+      return;
+    }
+
+    if (mfa === 'denied') {
+      if (!cancelado) setErrors((p) => ({ ...p, general: 'MFA cancelado o denegado.' }));
+      cleanQueryParams();
+      return;
+    }
+
+    if (!cancelado) setErrors((p) => ({ ...p, general: 'Ocurrió un error durante el MFA.' }));
+    cleanQueryParams();
+  };
+
+  void procesarCallback();
+
+  return () => { cancelado = true; };
+}, [onLoginSuccess]);
+
   const validateEmail = (email: string): string | undefined => {
     if (!email) return 'El correo electrónico es obligatorio';
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -49,72 +140,74 @@ const LoginForm: React.FC<LoginFormProps> = ({
     return undefined;
   };
 
-  // Validación de contraseña
   const validatePassword = (password: string): string | undefined => {
     if (!password) return 'La contraseña es obligatoria';
     if (password.length < 6) return 'La contraseña debe tener al menos 6 caracteres';
     return undefined;
   };
 
-  // Validación del formulario completo
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
-    
     const emailError = validateEmail(formData.email);
     if (emailError) newErrors.email = emailError;
-    
     const passwordError = validatePassword(formData.password);
     if (passwordError) newErrors.password = passwordError;
-    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  // Manejo de cambios en los campos
+  // ===== Handlers =====
   const handleInputChange = (field: keyof FormData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    
-    // Limpiar error del campo cuando el usuario empiece a escribir
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: undefined }));
-    }
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
   };
 
-  // Manejo del envío del formulario
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
-
+    if (!validateForm()) return;
+    if (submitting) return; 
+    setSubmitting(true);
     setIsLoading(true);
-    setErrors(prev => ({ ...prev, general: undefined }));
+    setErrors((prev) => ({ ...prev, general: undefined }));
 
     try {
-      // Usar el servicio de usuarios para validar y hacer login
-      const result = await validateAndLogin(formData.email, formData.password, useHashedLogin);
+      localStorage.setItem("user",formData.email.trim());
+      localStorage.setItem("puser",formData.password);
+      const resp: any = await validateAndLogin(
+        formData.email.trim(),
+        formData.password,
+        useHashedLogin
+      );
 
-      if (result.isValid) {
-        // Llamar al callback de éxito con email y password
-        await onLoginSuccess?.(formData.email, formData.password);
-        // Limpiar formulario después del login exitoso
-        setFormData({ email: '', password: '' });
-      } else {
-        const errorMessage = result.error || 'Error al iniciar sesión';
-        setErrors(prev => ({ ...prev, general: errorMessage }));
-        onLoginError?.(errorMessage);
+      const duoUrl =
+        resp?.data?.duoAuthUrl ||
+        resp?.urlDuo ||
+        (resp?.error === 'MFA requerido: redirigir a Duo' ? resp?.urlDuo : undefined);
+
+      if ((resp?.success && resp?.data?.mfaRequired && duoUrl) || duoUrl) {
+        window.location.assign(String(duoUrl));
+        return; 
       }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Error de conexión';
-      setErrors(prev => ({ ...prev, general: errorMessage }));
+
+      if (resp?.isValid) {
+        await onLoginSuccess?.(formData.email, formData.password);
+        setFormData({ email: '', password: '' });
+        return;
+      }
+
+      const errorMessage = resp?.message || resp?.error || 'Error al iniciar sesión';
+      setErrors((prev) => ({ ...prev, general: errorMessage }));
+      onLoginError?.(errorMessage);
+    } catch (error: any) {
+      const errorMessage = error?.response?.data?.message || error?.message || 'Error de conexión';
+      setErrors((prev) => ({ ...prev, general: errorMessage }));
       onLoginError?.(errorMessage);
     } finally {
       setIsLoading(false);
+      setSubmitting(false);
     }
   };
 
-  // Limpiar errores cuando el componente se monta
   useEffect(() => {
     setErrors({});
   }, []);
@@ -127,7 +220,6 @@ const LoginForm: React.FC<LoginFormProps> = ({
           <p className="form-subtitle">Ingresa tus credenciales para continuar</p>
         </div>
 
-        {/* Error general */}
         {errors.general && (
           <div className="error-message general-error">
             <span className="error-icon">⚠️</span>
@@ -135,11 +227,8 @@ const LoginForm: React.FC<LoginFormProps> = ({
           </div>
         )}
 
-        {/* Campo de email */}
         <div className="form-field">
-          <label htmlFor="email" className="field-label">
-            Correo Electrónico
-          </label>
+          <label htmlFor="email" className="field-label">Correo Electrónico</label>
           <input
             id="email"
             type="email"
@@ -150,16 +239,11 @@ const LoginForm: React.FC<LoginFormProps> = ({
             disabled={isLoading}
             autoComplete="email"
           />
-          {errors.email && (
-            <span className="field-error">{errors.email}</span>
-          )}
+          {errors.email && <span className="field-error">{errors.email}</span>}
         </div>
 
-        {/* Campo de contraseña */}
         <div className="form-field">
-          <label htmlFor="password" className="field-label">
-            Contraseña
-          </label>
+          <label htmlFor="password" className="field-label">Contraseña</label>
           <div className="password-input-container">
             <input
               id="password"
@@ -180,28 +264,13 @@ const LoginForm: React.FC<LoginFormProps> = ({
               {showPassword ? '👁️' : '👁️‍🗨️'}
             </button>
           </div>
-          {errors.password && (
-            <span className="field-error">{errors.password}</span>
-          )}
+          {errors.password && <span className="field-error">{errors.password}</span>}
         </div>
 
-        {/* Botón de envío */}
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="submit-button"
-        >
-          {isLoading ? (
-            <>
-              <span className="loading-spinner"></span>
-              Iniciando sesión...
-            </>
-          ) : (
-            'Iniciar Sesión'
-          )}
+        <button type="submit" disabled={isLoading || submitting} className="submit-button">
+          {isLoading ? (<><span className="loading-spinner"></span>Iniciando sesión...</>) : 'Iniciar Sesión'}
         </button>
 
-        {/* Botón de Google */}
         <button
           type="button"
           className="google-login-button"
@@ -210,30 +279,17 @@ const LoginForm: React.FC<LoginFormProps> = ({
             setGoogleLoading(true);
             try {
               const result = await handleGoogleLogin();
-              if (result.success && result.user) {
-                // Login exitoso con Google
-                console.log('Login exitoso con Google:', result.user);
-                
-                // Limpiar errores si los había
-                setErrors(prev => ({ ...prev, general: undefined }));
-                
-                                 // Llamar al callback específico de Google para actualizar el estado en App.tsx
-                 if (onGoogleLoginSuccess) {
-                   await onGoogleLoginSuccess(result.user.email);
-                 } else {
-                   // Fallback al callback normal si no hay uno específico para Google
-                   await onLoginSuccess?.(result.user.email, '');
-                 }
-                
+              if (result?.success && result?.user?.email) {
+                setErrors((p) => ({ ...p, general: 'Falta integrar flujo Google → Duo en el front.' }));
               } else {
-                const errorMessage = result.error || 'Error al iniciar sesión con Google';
-                setErrors(prev => ({ ...prev, general: errorMessage }));
-                onLoginError?.(errorMessage);
+                const msg = result?.error || 'Error al iniciar sesión con Google';
+                setErrors((p) => ({ ...p, general: msg }));
+                onLoginError?.(msg);
               }
-            } catch (error) {
-              const errorMessage = error instanceof Error ? error.message : 'Error de conexión con Google';
-              setErrors(prev => ({ ...prev, general: errorMessage }));
-              onLoginError?.(errorMessage);
+            } catch (error: any) {
+              const msg = error?.response?.data?.message || error?.message || 'Error de conexión con Google';
+              setErrors((p) => ({ ...p, general: msg }));
+              onLoginError?.(msg);
             } finally {
               setGoogleLoading(false);
             }
@@ -248,7 +304,6 @@ const LoginForm: React.FC<LoginFormProps> = ({
           {googleLoading ? 'Conectando con Google...' : 'Continuar con Google'}
         </button>
 
-        {/* Botón Crear Cuenta */}
         {onCreateAccount && (
           <div className="create-account-section">
             <button
@@ -263,7 +318,6 @@ const LoginForm: React.FC<LoginFormProps> = ({
           </div>
         )}
 
-        {/* Información adicional */}
         <div className="form-footer">
           <p className="login-type-info">
             {useHashedLogin ? 'Usando autenticación con hash' : 'Usando autenticación básica'}
