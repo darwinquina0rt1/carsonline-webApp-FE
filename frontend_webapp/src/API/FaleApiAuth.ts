@@ -91,10 +91,23 @@ export function loginHashed(params: { email: string; password: string }) {
 }
 
 // Función específica para el login usando tu endpoint
-export function loginUser(params: { email: string; password: string;mfa:string }) {
+export function loginUser(params: { email: string; password: string; mfa: string }) {
+  // Validar que todos los parámetros requeridos estén presentes
+  if (!params.email || !params.password) {
+    throw new Error('Email y contraseña son requeridos');
+  }
+  
+  // Asegurar que mfa siempre tenga un valor
+  const loginParams = {
+    email: params.email.trim(),
+    password: params.password,
+    mfa: params.mfa || "S" // Default a "S" si no se especifica
+  };
+  
+  
   return apiFetch<AuthResponse>("/auth/login", {
     method: "POST",
-    body: JSON.stringify(params),
+    body: JSON.stringify(loginParams),
   });
 }
 

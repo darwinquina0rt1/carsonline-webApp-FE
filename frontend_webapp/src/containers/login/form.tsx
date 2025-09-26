@@ -51,7 +51,6 @@ function cleanQueryParams() {
 
 const LoginForm: React.FC<LoginFormProps> = ({
   onLoginSuccess,
-  onGoogleLoginSuccess,
   onLoginError,
   onCreateAccount,
   useHashedLogin = false,
@@ -63,30 +62,12 @@ const LoginForm: React.FC<LoginFormProps> = ({
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false); // evita doble submit
-const getToken = () => localStorage.getItem('access_token') ?? null;
 
-function isJwtValid(token: string): boolean {
-  try {
-    const [, payloadB64] = token.split('.');
-    const json = atob(payloadB64.replace(/-/g, '+').replace(/_/g, '/'));
-    const payload = JSON.parse(json) as { exp?: number; mfa?: boolean };
-    if (!payload?.exp) return false;
-    const notExpired = payload.exp * 1000 > Date.now();
-    const hasMfa = payload.mfa === true; 
-    return notExpired && hasMfa;
-  } catch {
-    return false;
-  }
-}
 
   useEffect(() => {
   let cancelado = false;
 
   const procesarCallback = async () => {
-
-     const existing = getToken();
-     
-    
     const params = new URLSearchParams(window.location.search);
     const mfa = params.get('mfa');
     const token = params.get('token');
@@ -103,14 +84,9 @@ function isJwtValid(token: string): boolean {
       const pass  = localStorage.getItem('puser') ?? '';
 
       try {
-    //   if (existing && isJwtValid(existing)) {
-    //   scheduleAutoLogout(existing);
-    //   // window.location.replace('/');
-    //   return;
-    // }
-        await validateAndLogin?.(email, pass,useHashedLogin,false);
-                await onLoginSuccess?.(email, pass);
-                window.location.reload()
+        await validateAndLogin?.(email, pass, true);
+        await onLoginSuccess?.(email, pass);
+        window.location.reload();
         setFormData({ email: '', password: '' });
       } catch (e) {
         console.error('onLoginSuccess falló:', e);
@@ -171,12 +147,19 @@ function isJwtValid(token: string): boolean {
     setErrors((prev) => ({ ...prev, general: undefined }));
 
     try {
+      // Validar que los campos no estén vacíos
+      if (!formData.email.trim() || !formData.password) {
+        setErrors((prev) => ({ ...prev, general: 'Email y contraseña son requeridos' }));
+        return;
+      }
+      
+      
       localStorage.setItem("user",formData.email.trim());
       localStorage.setItem("puser",formData.password);
       const resp: any = await validateAndLogin(
         formData.email.trim(),
         formData.password,
-        useHashedLogin
+        true // MFA habilitado
       );
 
       const duoUrl =
@@ -195,11 +178,28 @@ function isJwtValid(token: string): boolean {
         return;
       }
 
+      // Si el login fue exitoso pero no tiene isValid, verificar success
+      if (resp?.success && resp?.data?.token) {
+        await onLoginSuccess?.(formData.email, formData.password);
+        setFormData({ email: '', password: '' });
+        return;
+      }
+
       const errorMessage = resp?.message || resp?.error || 'Error al iniciar sesión';
       setErrors((prev) => ({ ...prev, general: errorMessage }));
       onLoginError?.(errorMessage);
     } catch (error: any) {
-      const errorMessage = error?.response?.data?.message || error?.message || 'Error de conexión';
+      
+      let errorMessage = 'Error de conexión. Intenta nuevamente.';
+      
+      if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      } else if (error?.response?.data?.error) {
+        errorMessage = `Error del servidor: ${error.response.data.error}`;
+      }
+      
       setErrors((prev) => ({ ...prev, general: errorMessage }));
       onLoginError?.(errorMessage);
     } finally {

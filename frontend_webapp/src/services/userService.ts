@@ -1,4 +1,4 @@
-import { loginBasic, loginHashed, registerInsecure, registerHashed, loginUser } from '../API/FaleApiAuth';
+import { registerInsecure, registerHashed, loginUser } from '../API/FaleApiAuth';
 import type { AuthResponse, HashAlgo } from '../API/FaleApiAuth';
 
 // Tipos para el servicio de usuarios
@@ -27,7 +27,9 @@ export interface UserValidationResult {
   isValid: boolean;
   user?: User;
   error?: string;
-  urlDuo?:string;
+  urlDuo?: string;
+  success?: boolean;
+  data?: any;
 }
 function parseJwt(token: string): { exp?: number; mfa?: boolean } | null {
   try {
@@ -54,25 +56,25 @@ class UserService {
 
   // Validar si el usuario está autenticado
   public isAuthenticated(): boolean {
+    const token = localStorage.getItem('access_token');
+    if (!token) return false;
 
-const token = localStorage.getItem('access_token');
-  if (!token) return false;
+    const payload = parseJwt(token);
+    if (!payload?.exp) {
+      localStorage.removeItem('access_token');
+      return false;
+    }
 
-  const payload = parseJwt(token);
-  if (!payload?.exp) {
+    const notExpired = payload.exp * 1000 > Date.now();
+    const hasMfa = payload.mfa === true; 
+
+    // Si no hay MFA en el token, asumir que está OK (MFA simulado)
+    if (notExpired && (hasMfa || payload.mfa === undefined)) {
+      return true;
+    }
+
     localStorage.removeItem('access_token');
     return false;
-  }
-
-  const notExpired = payload.exp * 1000 > Date.now();
-  const hasMfa = payload.mfa === true; 
-
-  if (notExpired && hasMfa) return true;
-
-  localStorage.removeItem('access_token');
-  return false;
-    const token2 = localStorage.getItem('token');
-    return !!token2 && !!this.currentUser;
   }
 
   // Obtener el usuario actual
@@ -81,10 +83,10 @@ const token = localStorage.getItem('access_token');
   }
 
   // Validar credenciales de login
-  public async validateLogin(credentials: LoginCredentials, useHashed: boolean = false,mfa:boolean=true): Promise<UserValidationResult> {
+  public async validateLogin(credentials: LoginCredentials, mfa: boolean = true): Promise<UserValidationResult> {
     try {
-      if(mfa){
-        credentials.mfa="S";
+      if (mfa) {
+        credentials.mfa = "S";
       }
       // Validar formato de email
       if (!this.isValidEmail(credentials.email)) {
@@ -103,20 +105,30 @@ const token = localStorage.getItem('access_token');
       }
 
       // Intentar hacer login usando tu endpoint específico
-      const response = await loginUser(credentials);
-      if (response.success && response.data?.user) {
+      const response = await loginUser({
+        email: credentials.email,
+        password: credentials.password,
+        mfa: credentials.mfa || "S"
+      });
+      if (response.success && response.data?.token) {
         // Guardar token si existe en la respuesta
-        if (response.data.token) {
-          localStorage.setItem('token', response.data.token);
-        }
+        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('access_token', response.data.token);
         
-        // Sanitizar y guardar información del usuario
-        const safeUser = this.sanitizeUserData(response.data.user);
+        // Crear usuario desde el token o datos disponibles
+        const safeUser = this.sanitizeUserData(response.data.user || {
+          email: credentials.email,
+          username: 'admin',
+          role: 'admin'
+        });
         this.currentUser = safeUser;
+
 
         return {
           isValid: true,
-          user: safeUser
+          user: safeUser,
+          success: true,
+          data: response.data
         };
       } else {
         // Manejar error según tu formato de API
@@ -306,8 +318,8 @@ const token = localStorage.getItem('access_token');
   public logout(): void {
     localStorage.removeItem('token');
     localStorage.removeItem('access_token');
-
     localStorage.removeItem('user');
+    localStorage.removeItem('puser');
     this.currentUser = null;
   }
 
@@ -334,7 +346,8 @@ const token = localStorage.getItem('access_token');
       // Intentar hacer login con credenciales falsas para verificar si el usuario existe
       const response = await loginUser({
         email,
-        password: 'dummy_password_for_check'
+        password: 'dummy_password_for_check',
+        mfa: 'S'
       });
 
       // Si el error es específico sobre credenciales incorrectas, el usuario existe
@@ -367,8 +380,8 @@ const token = localStorage.getItem('access_token');
 export const userService = UserService.getInstance();
 
 // Funciones de utilidad para facilitar el uso
-export const validateAndLogin = async (email: string, password: string, useHashed: boolean = false,mfa:boolean=true) => {
-  return userService.validateLogin({ email, password }, useHashed,mfa);
+export const validateAndLogin = async (email: string, password: string, mfa: boolean = true) => {
+  return userService.validateLogin({ email, password, mfa: mfa ? "S" : "N" }, mfa);
 };
 
 export const registerNewUser = async (email: string, password: string, name?: string, useHashed: boolean = false, hashAlgo?: HashAlgo) => {

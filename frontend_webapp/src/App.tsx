@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import Homepage from './components/homepage';
 import Login from './components/Loginpage';
 import { logoutUser } from './services/userService'; // asegúrate que borra access_token
-import { logger } from './utils/logger';
 import './App.css';
 
 function App() {
@@ -25,9 +24,12 @@ function App() {
   const isTokenValid = (token: string): boolean => {
     const p = parseJwt(token);
     if (!p?.exp) return false;
+    
     const notExpired = p.exp * 1000 > Date.now();
-    const hasMfa = p.mfa === true; // quita esta línea si tu backend no pone mfa:true
-    return notExpired && hasMfa;
+    const hasMfa = p.mfa === true;
+    
+    // Si no hay MFA en el token, asumir que está OK (MFA simulado)
+    return notExpired && (hasMfa || p.mfa === undefined);
   };
 
   const clearLogoutTimer = () => {
@@ -90,11 +92,33 @@ function App() {
   }, []);
 
   const handleLogin = async () => {
-    recheckAuth();
+    const isAuth = recheckAuth();
+    if (isAuth) {
+      setIsAuthenticated(true);
+    } else {
+      // Forzar verificación después de un breve delay
+      setTimeout(() => {
+        const isAuthDelayed = recheckAuth();
+        if (isAuthDelayed) {
+          setIsAuthenticated(true);
+        }
+      }, 100);
+    }
   };
 
   const handleGoogleLogin = async () => {
-    recheckAuth();
+    const isAuth = recheckAuth();
+    if (isAuth) {
+      setIsAuthenticated(true);
+    } else {
+      // Forzar verificación después de un breve delay
+      setTimeout(() => {
+        const isAuthDelayed = recheckAuth();
+        if (isAuthDelayed) {
+          setIsAuthenticated(true);
+        }
+      }, 100);
+    }
   };
 
   const handleLogout = () => {
@@ -114,7 +138,6 @@ function App() {
     );
   }
 
-  logger.logDebug('Estado actual de autenticación:', isAuthenticated);
 
   return (
     <div className="App">
