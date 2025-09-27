@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getUserPermissions } from '../../services/userService';
-import { isMfaCompleted } from '../../services/jwtService';
+import { isMfaCompleted, isTokenValid } from '../../services/jwtService';
+import { authenticatedFetch, buildApiUrl, API_CONFIG } from '../../config/api';
 import '../../layouts/createcar.css';
 
 interface VehicleFormData {
@@ -81,16 +82,19 @@ const CreateVehicleForm: React.FC<CreateVehicleFormProps> = ({ onVehicleCreated 
     setSubmitMessage(null);
 
     try {
-      const response = await fetch('http://localhost:3005/api/vehicles', {
+      // Verificar que el token sea válido antes de hacer la petición
+      if (!isTokenValid()) {
+        throw new Error('Sesión expirada. Por favor, inicia sesión nuevamente.');
+      }
+
+      const response = await authenticatedFetch(buildApiUrl(API_CONFIG.ENDPOINTS.VEHICLES), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify(formData),
       });
 
       if (!response.ok) {
-        throw new Error('Error al crear el vehículo');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Error al crear el vehículo');
       }
 
       await response.json();
