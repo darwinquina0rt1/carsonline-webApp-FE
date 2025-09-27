@@ -352,18 +352,29 @@ class UserService {
   // Obtener permisos del usuario actual
   public async getUserPermissions(): Promise<string[]> {
     try {
+      console.log('🔍 Solicitando permisos del usuario...');
+      
       // Limpiar tokens viejos antes de hacer la petición
       checkAndCleanOldTokens();
       
       const data = await fetchUserPermissions();
       
       // Debug detallado del procesamiento
+      console.log('📋 Respuesta de permisos:', data);
       
       // Intentar extraer permisos de diferentes ubicaciones posibles
       const permissions = data.data?.permissions || data.permissions || [];
+      
+      console.log('🔐 Permisos extraídos:', { 
+        permissions, 
+        count: permissions.length,
+        hasData: !!data.data,
+        hasPermissions: !!data.permissions
+      });
+      
       return permissions;
     } catch (error) {
-      console.error('Error obteniendo permisos:', error);
+      console.error('❌ Error obteniendo permisos:', error);
       return [];
     }
   }

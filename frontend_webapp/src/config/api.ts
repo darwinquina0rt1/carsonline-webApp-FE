@@ -70,8 +70,20 @@ export const handleApiResponse = async (response: Response) => {
   const data = await response.json();
   
   // Debug detallado para permisos
+  console.log('🌐 Respuesta de API:', {
+    status: response.status,
+    ok: response.ok,
+    url: response.url,
+    data: data
+  });
   
   if (!response.ok) {
+    console.error('❌ Error en API:', {
+      status: response.status,
+      statusText: response.statusText,
+      message: data.message,
+      data: data
+    });
     throw new Error(data.message || `Error ${response.status}: ${response.statusText}`);
   }
   

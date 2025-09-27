@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { getUserPermissions } from '../../services/userService';
-import { isMfaCompleted, isTokenValid } from '../../services/jwtService';
+import { isTokenValid } from '../../services/jwtService';
+import { checkVehiclePermissions } from '../../utils/permissionUtils';
 import { authenticatedFetch, buildApiUrl, API_CONFIG } from '../../config/api';
 import '../../layouts/createcar.css';
 
@@ -39,30 +39,18 @@ const CreateVehicleForm: React.FC<CreateVehicleFormProps> = ({ onVehicleCreated 
 
   const checkCreatePermission = async () => {
     try {
-      // Verificar si el usuario tiene MFA completado
-      const mfaCompleted = isMfaCompleted();
+      // Usar verificación local de permisos
+      const vehiclePermissions = await checkVehiclePermissions();
       
-      if (!mfaCompleted) {
-        setCanCreate(true);
-        return;
-      }
+      console.log('🔐 Permisos de vehículos verificados:', vehiclePermissions);
       
-      // Obtener todos los permisos del usuario según su rol
-      const userPermissions = await getUserPermissions();
+      // Establecer permiso de crear basado en la verificación local
+      setCanCreate(vehiclePermissions.canCreate);
       
-      // Si no hay permisos o hay error, usar bypass temporal
-      if (!userPermissions || userPermissions.length === 0) {
-        setCanCreate(true);
-        return;
-      }
-      
-      // Verificar si tiene permiso de crear
-      const hasCreatePermission = userPermissions.includes('create:vehicle');
-      
-      setCanCreate(hasCreatePermission);
     } catch (error) {
-      // En caso de error, dar permiso (temporal)
-      setCanCreate(true);
+      console.error('❌ Error verificando permiso de crear:', error);
+      // En caso de error, denegar permiso por seguridad
+      setCanCreate(false);
     }
   };
 

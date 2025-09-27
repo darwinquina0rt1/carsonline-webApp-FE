@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getUserPermissions } from '../services/userService';
-import { isMfaCompleted } from '../services/jwtService';
+import { checkVehiclePermissions } from '../utils/permissionUtils';
 import '../layouts/topcar.css';
 
 interface Vehicle {
@@ -39,32 +38,21 @@ const TopCarContainer: React.FC<TopCarContainerProps> = ({ refreshTrigger }) => 
 
   const checkPermissions = async () => {
     try {
-      // Verificar si el usuario tiene MFA completado
-      const mfaCompleted = isMfaCompleted();
+      // Usar verificación local de permisos
+      const vehiclePermissions = await checkVehiclePermissions();
       
-      if (!mfaCompleted) {
-        setPermissions({ canUpdate: true, canDelete: true });
-        return;
-      }
+      console.log('🔐 Permisos de vehículos verificados:', vehiclePermissions);
       
-      // Obtener todos los permisos del usuario según su rol
-      const userPermissions = await getUserPermissions();
+      // Establecer permisos basados en la verificación local
+      setPermissions({ 
+        canUpdate: vehiclePermissions.canUpdate,
+        canDelete: vehiclePermissions.canDelete
+      });
       
-      // Si no hay permisos o hay error, usar bypass temporal para admin
-      if (!userPermissions || userPermissions.length === 0) {
-        // Por ahora, dar permisos completos (temporal)
-        setPermissions({ canUpdate: true, canDelete: true });
-        return;
-      }
-      
-      // Verificar permisos específicos
-      const canUpdate = userPermissions.includes('update:vehicle');
-      const canDelete = userPermissions.includes('delete:vehicle');
-      
-      setPermissions({ canUpdate, canDelete });
     } catch (error) {
-      // En caso de error, dar permisos completos (temporal)
-      setPermissions({ canUpdate: true, canDelete: true });
+      console.error('❌ Error verificando permisos:', error);
+      // En caso de error, denegar permisos por seguridad
+      setPermissions({ canUpdate: false, canDelete: false });
     }
   };
 
