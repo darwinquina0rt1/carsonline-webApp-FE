@@ -51,6 +51,7 @@ function cleanQueryParams() {
 
 const LoginForm: React.FC<LoginFormProps> = ({
   onLoginSuccess,
+  onGoogleLoginSuccess,
   onLoginError,
   onCreateAccount,
   useHashedLogin = false,
@@ -280,7 +281,23 @@ const LoginForm: React.FC<LoginFormProps> = ({
             try {
               const result = await handleGoogleLogin();
               if (result?.success && result?.user?.email) {
-                setErrors((p) => ({ ...p, general: 'Falta integrar flujo Google → Duo en el front.' }));
+                // Login exitoso con Google - proceder con la autenticación
+                console.log('Login Google exitoso, procediendo con autenticación...');
+                
+                // Guardar el token JWT que ya se guardó en handleGoogleLogin
+                const token = localStorage.getItem('token');
+                if (token) {
+                  localStorage.setItem('access_token', token);
+                  scheduleAutoLogout(token);
+                }
+                
+                // Llamar al callback específico de Google si existe, sino el normal
+                if (onGoogleLoginSuccess) {
+                  await onGoogleLoginSuccess(result.user.email);
+                } else {
+                  await onLoginSuccess?.(result.user.email, '');
+                }
+                setFormData({ email: '', password: '' });
               } else {
                 const msg = result?.error || 'Error al iniciar sesión con Google';
                 setErrors((p) => ({ ...p, general: msg }));
