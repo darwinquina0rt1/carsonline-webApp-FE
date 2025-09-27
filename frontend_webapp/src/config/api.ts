@@ -21,6 +21,11 @@ export const API_CONFIG = {
     BRANDS: '/brands',
     STATS: '/stats',
     
+    // Permisos
+    PERMISSIONS_USER: '/permissions/user',
+    PERMISSIONS_CHECK: '/permissions/check',
+    PERMISSIONS_ALL: '/permissions/all',
+    
     // Health checks
     HEALTH: '/health'
   }
@@ -43,7 +48,10 @@ export const authenticatedFetch = async (
   url: string, 
   options: RequestInit = {}
 ): Promise<Response> => {
-  const token = localStorage.getItem('token');
+  // Buscar token en ambas ubicaciones posibles
+  const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+  
+  // Debug: Verificar token
   
   const headers = {
     'Content-Type': 'application/json',
@@ -60,6 +68,8 @@ export const authenticatedFetch = async (
 // Función para manejar respuestas de la API
 export const handleApiResponse = async (response: Response) => {
   const data = await response.json();
+  
+  // Debug detallado para permisos
   
   if (!response.ok) {
     throw new Error(data.message || `Error ${response.status}: ${response.statusText}`);
@@ -116,5 +126,21 @@ export const fetchStats = async () => {
 // Función para verificar el estado de la API
 export const checkApiHealth = async () => {
   const response = await fetch(buildApiUrl(API_CONFIG.ENDPOINTS.HEALTH));
+  return handleApiResponse(response);
+};
+
+// Funciones de permisos
+export const fetchUserPermissions = async () => {
+  const response = await authenticatedFetch(buildApiUrl(API_CONFIG.ENDPOINTS.PERMISSIONS_USER));
+  return handleApiResponse(response);
+};
+
+export const checkPermission = async (permission: string) => {
+  const response = await authenticatedFetch(buildApiUrl(`${API_CONFIG.ENDPOINTS.PERMISSIONS_CHECK}/${permission}`));
+  return handleApiResponse(response);
+};
+
+export const fetchAllPermissions = async () => {
+  const response = await authenticatedFetch(buildApiUrl(API_CONFIG.ENDPOINTS.PERMISSIONS_ALL));
   return handleApiResponse(response);
 };

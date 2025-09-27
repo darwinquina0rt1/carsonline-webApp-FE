@@ -62,7 +62,7 @@ class SecureLogger {
       role: userInfo.role || 'N/A'
     };
     
-    console.log(`👤 ${action}:`, safeUserInfo);
+    // Log de acción de usuario
   }
   
   // Log para eventos de autenticación
@@ -72,7 +72,7 @@ class SecureLogger {
     }
     
     const timestamp = new Date().toISOString();
-    console.log(`🔐 [${timestamp}] ${event}`, details ? '✅' : '');
+    // Log de evento de autenticación
   }
   
   // Log para errores
@@ -81,7 +81,7 @@ class SecureLogger {
       return;
     }
     
-    console.error(`❌ ${message}`, error || '');
+    // Log de error
   }
   
   // Log para debugging (solo en desarrollo)
@@ -90,7 +90,7 @@ class SecureLogger {
       return;
     }
     
-    console.log(`🐛 ${message}`, data || '');
+    // Log de debug
   }
   
   // Log para advertencias
@@ -99,7 +99,7 @@ class SecureLogger {
       return;
     }
     
-    console.warn(`⚠️ ${message}`, data || '');
+    // Log de advertencia
   }
   
   // Log para información general
@@ -108,7 +108,7 @@ class SecureLogger {
       return;
     }
     
-    console.log(`ℹ️ ${message}`, data || '');
+    // Log de información
   }
 }
 

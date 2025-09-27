@@ -1,5 +1,7 @@
 import { registerInsecure, registerHashed, loginUser } from '../API/FaleApiAuth';
 import type { AuthResponse, HashAlgo } from '../API/FaleApiAuth';
+import { jwtService, checkAndCleanOldTokens } from './jwtService';
+import { fetchUserPermissions, checkPermission } from '../config/api';
 
 // Tipos para el servicio de usuarios
 export interface User {
@@ -31,15 +33,7 @@ export interface UserValidationResult {
   success?: boolean;
   data?: any;
 }
-function parseJwt(token: string): { exp?: number; mfa?: boolean } | null {
-  try {
-    const [, b64] = token.split('.');
-    const json = atob(b64.replace(/-/g, '+').replace(/_/g, '/'));
-    return JSON.parse(json);
-  } catch {
-    return null;
-  }
-}
+// Función parseJwt movida al servicio jwtService.ts
 // Clase para manejar el servicio de usuarios
 class UserService {
   private static instance: UserService;
@@ -56,25 +50,7 @@ class UserService {
 
   // Validar si el usuario está autenticado
   public isAuthenticated(): boolean {
-    const token = localStorage.getItem('access_token');
-    if (!token) return false;
-
-    const payload = parseJwt(token);
-    if (!payload?.exp) {
-      localStorage.removeItem('access_token');
-      return false;
-    }
-
-    const notExpired = payload.exp * 1000 > Date.now();
-    const hasMfa = payload.mfa === true; 
-
-    // Si no hay MFA en el token, asumir que está OK (MFA simulado)
-    if (notExpired && (hasMfa || payload.mfa === undefined)) {
-      return true;
-    }
-
-    localStorage.removeItem('access_token');
-    return false;
+    return jwtService.isTokenValid();
   }
 
   // Obtener el usuario actual
@@ -111,9 +87,8 @@ class UserService {
         mfa: credentials.mfa || "S"
       });
       if (response.success && response.data?.token) {
-        // Guardar token si existe en la respuesta
-        localStorage.setItem('token', response.data.token);
-        localStorage.setItem('access_token', response.data.token);
+        // Guardar token usando el servicio JWT mejorado
+        jwtService.saveToken(response.data.token);
         
         // Crear usuario desde el token o datos disponibles
         const safeUser = this.sanitizeUserData(response.data.user || {
@@ -316,8 +291,7 @@ class UserService {
 
   // Cerrar sesión
   public logout(): void {
-    localStorage.removeItem('token');
-    localStorage.removeItem('access_token');
+    jwtService.clearTokens();
     localStorage.removeItem('user');
     localStorage.removeItem('puser');
     this.currentUser = null;
@@ -374,6 +348,36 @@ class UserService {
       return null;
     }
   }
+
+  // Obtener permisos del usuario actual
+  public async getUserPermissions(): Promise<string[]> {
+    try {
+      // Limpiar tokens viejos antes de hacer la petición
+      checkAndCleanOldTokens();
+      
+      const data = await fetchUserPermissions();
+      
+      // Debug detallado del procesamiento
+      
+      // Intentar extraer permisos de diferentes ubicaciones posibles
+      const permissions = data.data?.permissions || data.permissions || [];
+      return permissions;
+    } catch (error) {
+      console.error('Error obteniendo permisos:', error);
+      return [];
+    }
+  }
+
+  // Verificar si el usuario tiene un permiso específico
+  public async hasPermission(permission: string): Promise<boolean> {
+    try {
+      const data = await checkPermission(permission);
+      return data.hasPermission || false;
+    } catch (error) {
+      console.error('Error verificando permiso:', error);
+      return false;
+    }
+  }
 }
 
 // Exportar una instancia del servicio
@@ -403,3 +407,7 @@ export const createNewUser = (userData: {
   role: 'admin' | 'user';
   isActive: boolean;
 }) => userService.createUser(userData);
+
+// Funciones de permisos
+export const getUserPermissions = () => userService.getUserPermissions();
+export const hasPermission = (permission: string) => userService.hasPermission(permission);

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import Homepage from './components/homepage';
 import Login from './components/Loginpage';
-import { logoutUser } from './services/userService'; // asegúrate que borra access_token
+import { logoutUser } from './services/userService';
+import { jwtService } from './services/jwtService';
 import './App.css';
 
 function App() {
@@ -9,27 +10,9 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
   const logoutTimerRef = useRef<number | null>(null);
 
-  const getToken = () => localStorage.getItem('access_token');
-
-  const parseJwt = (token: string): { exp?: number; mfa?: boolean } | null => {
-    try {
-      const [, b64] = token.split('.');
-      const json = atob(b64.replace(/-/g, '+').replace(/_/g, '/'));
-      return JSON.parse(json);
-    } catch {
-      return null;
-    }
-  };
-
-  const isTokenValid = (token: string): boolean => {
-    const p = parseJwt(token);
-    if (!p?.exp) return false;
-    
-    const notExpired = p.exp * 1000 > Date.now();
-    const hasMfa = p.mfa === true;
-    
-    // Si no hay MFA en el token, asumir que está OK (MFA simulado)
-    return notExpired && (hasMfa || p.mfa === undefined);
+  // Usar el servicio JWT mejorado
+  const isTokenValid = (): boolean => {
+    return jwtService.isTokenValid();
   };
 
   const clearLogoutTimer = () => {
@@ -39,26 +22,20 @@ function App() {
     }
   };
 
-  const scheduleAutoLogoutFromToken = (token: string) => {
+  const scheduleAutoLogoutFromToken = () => {
     clearLogoutTimer();
-    const p = parseJwt(token);
-    if (!p?.exp) return;
-    const msLeft = p.exp * 1000 - Date.now();
-
-
-    logoutTimerRef.current = window.setTimeout(() => {
-      logoutUser();            // borra access_token
+    
+    logoutTimerRef.current = jwtService.scheduleAutoLogout(() => {
+      logoutUser();
       setIsAuthenticated(false);
       if (!location.pathname.includes('/login')) location.replace('/login');
-    }, Math.max(msLeft, 0));
+    });
   };
 
   const recheckAuth = (): boolean => {
-    const token = getToken();
-
-    if (token && isTokenValid(token)) {
+    if (isTokenValid()) {
       setIsAuthenticated(true);
-      scheduleAutoLogoutFromToken(token);
+      scheduleAutoLogoutFromToken();
       return true;
     }
 
@@ -85,7 +62,7 @@ function App() {
 
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
-      if (e.key === 'access_token') recheckAuth();
+      if (e.key === 'access_token' || e.key === 'token') recheckAuth();
     };
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);

@@ -99,10 +99,7 @@ const CreateUsers: React.FC<CreateUsersProps> = ({ onUserCreated }) => {
         password: formData.password,
         role: formData.role,
         isActive: formData.isActive
-      };
-
-      console.log('Datos del usuario a crear:', userData);
-      
+      };      
       // Llamar a la función de registro
       const result = await createNewUser(userData);
       

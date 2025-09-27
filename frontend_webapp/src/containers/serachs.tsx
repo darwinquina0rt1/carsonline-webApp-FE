@@ -23,7 +23,6 @@ const SearchContainer: React.FC = () => {
 
   const handleSearch = () => {
     // Aquí puedes implementar la lógica de búsqueda
-    console.log('Búsqueda realizada con filtros:', filters);
     
     // Ejemplo de validación básica
     if (!filters.keyword && !filters.maxPrice && !filters.year) {

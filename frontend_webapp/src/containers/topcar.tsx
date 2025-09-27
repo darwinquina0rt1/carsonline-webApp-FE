@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { getUserPermissions } from '../services/userService';
+import { isMfaCompleted } from '../services/jwtService';
 import '../layouts/topcar.css';
 
 interface Vehicle {
@@ -25,10 +27,46 @@ const TopCarContainer: React.FC<TopCarContainerProps> = ({ refreshTrigger }) => 
   const [expandedVehicles, setExpandedVehicles] = useState<Set<number>>(new Set());
   const [editingVehicle, setEditingVehicle] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<Partial<Vehicle>>({});
+  const [permissions, setPermissions] = useState({
+    canUpdate: false,
+    canDelete: false
+  });
 
   useEffect(() => {
     fetchVehicles();
+    checkPermissions();
   }, []);
+
+  const checkPermissions = async () => {
+    try {
+      // Verificar si el usuario tiene MFA completado
+      const mfaCompleted = isMfaCompleted();
+      
+      if (!mfaCompleted) {
+        setPermissions({ canUpdate: true, canDelete: true });
+        return;
+      }
+      
+      // Obtener todos los permisos del usuario según su rol
+      const userPermissions = await getUserPermissions();
+      
+      // Si no hay permisos o hay error, usar bypass temporal para admin
+      if (!userPermissions || userPermissions.length === 0) {
+        // Por ahora, dar permisos completos (temporal)
+        setPermissions({ canUpdate: true, canDelete: true });
+        return;
+      }
+      
+      // Verificar permisos específicos
+      const canUpdate = userPermissions.includes('update:vehicle');
+      const canDelete = userPermissions.includes('delete:vehicle');
+      
+      setPermissions({ canUpdate, canDelete });
+    } catch (error) {
+      // En caso de error, dar permisos completos (temporal)
+      setPermissions({ canUpdate: true, canDelete: true });
+    }
+  };
 
   // Escuchar cambios en refreshTrigger para actualizar la lista
   useEffect(() => {
@@ -48,7 +86,6 @@ const TopCarContainer: React.FC<TopCarContainerProps> = ({ refreshTrigger }) => 
       }
       
       const data = await response.json();
-      console.log('API Response:', data);
       
       // Manejar diferentes estructuras posibles de la respuesta
       let allVehicles: Vehicle[] = [];
@@ -77,7 +114,6 @@ const TopCarContainer: React.FC<TopCarContainerProps> = ({ refreshTrigger }) => 
         allVehicles = data.vehicles;
       }
       
-      console.log('Vehículos procesados:', allVehicles);
       
       if (allVehicles.length === 0) {
         throw new Error('No se encontraron vehículos en la respuesta de la API');
@@ -314,18 +350,22 @@ const TopCarContainer: React.FC<TopCarContainerProps> = ({ refreshTrigger }) => 
                         >
                           Ver Menos
                         </button>
-                        <button 
-                          className="btn-edit" 
-                          onClick={() => handleEditVehicle(vehicle)}
-                        >
-                          Editar
-                        </button>
-                        <button 
-                          className="btn-delete" 
-                          onClick={() => handleDeleteVehicle(vehicle.id)}
-                        >
-                          Eliminar
-                        </button>
+                        {permissions.canUpdate && (
+                          <button 
+                            className="btn-edit" 
+                            onClick={() => handleEditVehicle(vehicle)}
+                          >
+                            Editar
+                          </button>
+                        )}
+                        {permissions.canDelete && (
+                          <button 
+                            className="btn-delete" 
+                            onClick={() => handleDeleteVehicle(vehicle.id)}
+                          >
+                            Eliminar
+                          </button>
+                        )}
                       </div>
                     </div>
                   ) : (
@@ -340,18 +380,22 @@ const TopCarContainer: React.FC<TopCarContainerProps> = ({ refreshTrigger }) => 
                         >
                           Ver Detalles
                         </button>
-                        <button 
-                          className="btn-edit" 
-                          onClick={() => handleEditVehicle(vehicle)}
-                        >
-                          Editar
-                        </button>
-                        <button 
-                          className="btn-delete" 
-                          onClick={() => handleDeleteVehicle(vehicle.id)}
-                        >
-                          Eliminar
-                        </button>
+                        {permissions.canUpdate && (
+                          <button 
+                            className="btn-edit" 
+                            onClick={() => handleEditVehicle(vehicle)}
+                          >
+                            Editar
+                          </button>
+                        )}
+                        {permissions.canDelete && (
+                          <button 
+                            className="btn-delete" 
+                            onClick={() => handleDeleteVehicle(vehicle.id)}
+                          >
+                            Eliminar
+                          </button>
+                        )}
                       </div>
                     </div>
                   )}

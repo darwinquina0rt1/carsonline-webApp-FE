@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { validateAndLogin } from '../../services/userService';
+import { loginWithBackoff, getRetryAfterTime, getRemainingBlockTime } from '../../services/authService';
+import { saveToken, clearTokens } from '../../services/jwtService';
 import { handleGoogleLogin } from '../google/logoofle';
+import BackoffInfo from '../../components/BackoffInfo';
 import '../../layouts/login-form.css';
 
 interface LoginFormProps {
@@ -23,8 +26,9 @@ interface FormErrors {
   general?: string;
 }
 
-const saveToken = (token: string) => localStorage.setItem('access_token', token);
-const clearSession = () => localStorage.removeItem('access_token');
+// Usar el servicio JWT mejorado
+const saveTokenToStorage = (token: string) => saveToken(token);
+const clearSession = () => clearTokens();
 
 let logoutTimer: number | undefined;
 function scheduleAutoLogout(token: string) {
@@ -36,7 +40,7 @@ function scheduleAutoLogout(token: string) {
     if (logoutTimer) window.clearTimeout(logoutTimer);
     logoutTimer = window.setTimeout(() => {
       clearSession();
-      // fuerza login al expirar (2 min)
+      // fuerza login al expirar (1 min)
       window.location.replace('/login');
     }, Math.max(msLeft, 0));
   } catch {
@@ -77,7 +81,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
     if (!mfa) return; 
 
     if (mfa === 'ok' && token) {
-      saveToken(token);
+      saveTokenToStorage(token);
       scheduleAutoLogout(token);
       cleanQueryParams();
 
@@ -154,43 +158,80 @@ const LoginForm: React.FC<LoginFormProps> = ({
         return;
       }
       
+      // Verificar si el usuario está bloqueado por Exponential Backoff
+      const retryAfter = getRetryAfterTime(formData.email.trim());
+      const remainingBlockTime = getRemainingBlockTime(formData.email.trim());
       
-      localStorage.setItem("user",formData.email.trim());
-      localStorage.setItem("puser",formData.password);
-      const resp: any = await validateAndLogin(
+      if (remainingBlockTime > 0) {
+        const minutes = Math.ceil(remainingBlockTime / 60);
+        setErrors((prev) => ({ 
+          ...prev, 
+          general: `Demasiados intentos fallidos. Intenta nuevamente en ${minutes} minutos.` 
+        }));
+        return;
+      }
+      
+      if (retryAfter > 0) {
+        setErrors((prev) => ({ 
+          ...prev, 
+          general: `Espera ${retryAfter} segundos antes del siguiente intento.` 
+        }));
+        return;
+      }
+      
+      localStorage.setItem("user", formData.email.trim());
+      localStorage.setItem("puser", formData.password);
+      
+      // Usar el nuevo servicio con Exponential Backoff
+      const resp = await loginWithBackoff(
         formData.email.trim(),
         formData.password,
-        true // MFA habilitado
+        "S" // MFA habilitado
       );
 
-      const duoUrl =
-        resp?.data?.duoAuthUrl ||
-        resp?.urlDuo ||
-        (resp?.error === 'MFA requerido: redirigir a Duo' ? resp?.urlDuo : undefined);
-
-      if ((resp?.success && resp?.data?.mfaRequired && duoUrl) || duoUrl) {
-        window.location.assign(String(duoUrl));
-        return; 
-      }
-
-      if (resp?.isValid) {
-        await onLoginSuccess?.(formData.email, formData.password);
-        setFormData({ email: '', password: '' });
+      // Manejar respuesta con información de backoff
+      if (resp.isBlocked) {
+        const minutes = Math.ceil((resp.retryAfter || 0) / 60);
+        setErrors((prev) => ({ 
+          ...prev, 
+          general: resp.error || `Demasiados intentos fallidos. Intenta nuevamente en ${minutes} minutos.` 
+        }));
         return;
       }
 
-      // Si el login fue exitoso pero no tiene isValid, verificar success
-      if (resp?.success && resp?.data?.token) {
-        await onLoginSuccess?.(formData.email, formData.password);
-        setFormData({ email: '', password: '' });
+      if (resp.retryAfter && resp.retryAfter > 0) {
+        setErrors((prev) => ({ 
+          ...prev, 
+          general: resp.error || `Espera ${resp.retryAfter} segundos antes del siguiente intento.` 
+        }));
         return;
       }
 
-      const errorMessage = resp?.message || resp?.error || 'Error al iniciar sesión';
+      if (resp.success) {
+        // Verificar si requiere MFA
+        if (resp.data?.mfaRequired && resp.data?.duoAuthUrl) {
+          // Redirigir a Duo Security
+          window.location.assign(String(resp.data.duoAuthUrl));
+          return;
+        }
+        
+        if (resp.data?.token) {
+          // Login exitoso
+          saveTokenToStorage(resp.data.token);
+          scheduleAutoLogout(resp.data.token);
+          
+          await onLoginSuccess?.(formData.email, formData.password);
+          setFormData({ email: '', password: '' });
+          return;
+        }
+      }
+
+      // Manejar errores
+      const errorMessage = resp.error || 'Error al iniciar sesión';
       setErrors((prev) => ({ ...prev, general: errorMessage }));
       onLoginError?.(errorMessage);
-    } catch (error: any) {
       
+    } catch (error: any) {
       let errorMessage = 'Error de conexión. Intenta nuevamente.';
       
       if (error?.response?.data?.message) {
@@ -226,6 +267,17 @@ const LoginForm: React.FC<LoginFormProps> = ({
             <span className="error-icon">⚠️</span>
             {errors.general}
           </div>
+        )}
+
+        {/* Mostrar información de Exponential Backoff */}
+        {formData.email.trim() && (
+          <BackoffInfo 
+            email={formData.email.trim()}
+            onRetry={() => {
+              setErrors({});
+              setSubmitting(false);
+            }}
+          />
         )}
 
         <div className="form-field">
@@ -282,12 +334,11 @@ const LoginForm: React.FC<LoginFormProps> = ({
               const result = await handleGoogleLogin();
               if (result?.success && result?.user?.email) {
                 // Login exitoso con Google - proceder con la autenticación
-                console.log('Login Google exitoso, procediendo con autenticación...');
                 
-                // Guardar el token JWT que ya se guardó en handleGoogleLogin
-                const token = localStorage.getItem('token');
+                // El token ya se guardó con el servicio JWT en handleGoogleLogin
+                // Solo necesitamos programar el auto-logout
+                const token = localStorage.getItem('access_token');
                 if (token) {
-                  localStorage.setItem('access_token', token);
                   scheduleAutoLogout(token);
                 }
                 

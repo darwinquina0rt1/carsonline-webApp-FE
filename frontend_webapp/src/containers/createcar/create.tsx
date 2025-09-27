@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { getUserPermissions } from '../../services/userService';
+import { isMfaCompleted } from '../../services/jwtService';
 import '../../layouts/createcar.css';
 
 interface VehicleFormData {
@@ -18,6 +20,7 @@ interface CreateVehicleFormProps {
 
 const CreateVehicleForm: React.FC<CreateVehicleFormProps> = ({ onVehicleCreated }) => {
   const [isFormVisible, setIsFormVisible] = useState(false);
+  const [canCreate, setCanCreate] = useState(false);
   const [formData, setFormData] = useState<VehicleFormData>({
     marca: '',
     modelo: '',
@@ -28,6 +31,39 @@ const CreateVehicleForm: React.FC<CreateVehicleFormProps> = ({ onVehicleCreated 
     color: '',
     image: ''
   });
+
+  useEffect(() => {
+    checkCreatePermission();
+  }, []);
+
+  const checkCreatePermission = async () => {
+    try {
+      // Verificar si el usuario tiene MFA completado
+      const mfaCompleted = isMfaCompleted();
+      
+      if (!mfaCompleted) {
+        setCanCreate(true);
+        return;
+      }
+      
+      // Obtener todos los permisos del usuario según su rol
+      const userPermissions = await getUserPermissions();
+      
+      // Si no hay permisos o hay error, usar bypass temporal
+      if (!userPermissions || userPermissions.length === 0) {
+        setCanCreate(true);
+        return;
+      }
+      
+      // Verificar si tiene permiso de crear
+      const hasCreatePermission = userPermissions.includes('create:vehicle');
+      
+      setCanCreate(hasCreatePermission);
+    } catch (error) {
+      // En caso de error, dar permiso (temporal)
+      setCanCreate(true);
+    }
+  };
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
@@ -57,8 +93,7 @@ const CreateVehicleForm: React.FC<CreateVehicleFormProps> = ({ onVehicleCreated 
         throw new Error('Error al crear el vehículo');
       }
 
-      const result = await response.json();
-      console.log('Vehículo creado:', result);
+      await response.json();
       
       setSubmitMessage({
         type: 'success',
@@ -126,16 +161,22 @@ const CreateVehicleForm: React.FC<CreateVehicleFormProps> = ({ onVehicleCreated 
       <div className="create-vehicle-header">
         <h2>Vender mi Auto</h2>
         <p>Completa la información de tu vehículo para publicarlo en CarOnline</p>
-        <button 
-          className="btn-toggle-form" 
-          onClick={toggleFormVisibility}
-          type="button"
-        >
-          {isFormVisible ? 'Ocultar Formulario' : 'Agregar Vehículo'}
-        </button>
+        {canCreate ? (
+          <button 
+            className="btn-toggle-form" 
+            onClick={toggleFormVisibility}
+            type="button"
+          >
+            {isFormVisible ? 'Ocultar Formulario' : 'Agregar Vehículo'}
+          </button>
+        ) : (
+          <div className="permission-message">
+            <p>No tienes permisos para crear vehículos</p>
+          </div>
+        )}
       </div>
 
-      {isFormVisible && (
+      {isFormVisible && canCreate && (
         <form className="create-vehicle-form" onSubmit={handleSubmit}>
         <div className="form-section">
           <h3>Información Básica</h3>

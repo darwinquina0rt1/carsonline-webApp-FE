@@ -46,7 +46,6 @@ export const useGoogleAuth = () => {
       script.defer = true;
       script.onload = () => {
         setIsLoaded(true);
-        console.log('Google Identity Services cargado correctamente');
       };
       script.onerror = () => {
         console.error('Error cargando Google Identity Services');
@@ -244,7 +243,6 @@ export const handleGoogleLogin = async (): Promise<GoogleAuthResponse> => {
       script.async = true;
       script.defer = true;
       script.onload = () => {
-        console.log('Google Identity Services cargado correctamente');
         performGoogleLogin(resolve);
       };
       script.onerror = () => {
@@ -279,14 +277,6 @@ export const handleGoogleLogin = async (): Promise<GoogleAuthResponse> => {
                 accessToken: response.access_token
               };
 
-              console.log('=== INICIO LOGIN GOOGLE ===');
-              console.log('Datos enviados al backend:', googleData);
-              console.log('URL del backend:', buildApiUrl(API_CONFIG.ENDPOINTS.GOOGLE_LOGIN));
-              console.log('Body enviado:', JSON.stringify(googleData, null, 2));
-              console.log('Enviando petición al backend...');
-              console.log('Token de acceso:', response.access_token.substring(0, 20) + '...');
-              console.log('Google ID:', userData.id);
-              console.log('Email:', userData.email);
 
               // Enviar datos al backend
               const backendResponse = await fetch(buildApiUrl(API_CONFIG.ENDPOINTS.GOOGLE_LOGIN), {
@@ -297,16 +287,12 @@ export const handleGoogleLogin = async (): Promise<GoogleAuthResponse> => {
                 body: JSON.stringify(googleData)
               });
 
-              console.log('Status del backend:', backendResponse.status);
-              console.log('Headers del backend:', Object.fromEntries(backendResponse.headers.entries()));
-
               const backendData = await backendResponse.json();
-              console.log('Respuesta del backend:', backendData);
-              console.log('=== FIN LOGIN GOOGLE ===');
               
               if (backendData.success) {
-                // Guardar token JWT y datos del usuario (según tu documentación)
-                localStorage.setItem('token', backendData.data.token);
+                // Usar el servicio JWT para guardar el token (el backend ya envía con 1 minuto)
+                const { saveToken } = await import('../../services/jwtService');
+                saveToken(backendData.data.token);
                 localStorage.setItem('user', JSON.stringify(backendData.data.user));
                 
                 const user: GoogleUser = {
@@ -316,8 +302,6 @@ export const handleGoogleLogin = async (): Promise<GoogleAuthResponse> => {
                   picture: userData.picture
                 };
 
-                console.log('Login exitoso con backend:', backendData.data);
-                console.log('Token JWT guardado:', backendData.data.token);
                 resolve({ success: true, user });
               } else {
                 console.error('Error en backend:', backendData.message);
