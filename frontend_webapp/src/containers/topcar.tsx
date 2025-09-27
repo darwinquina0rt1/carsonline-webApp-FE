@@ -80,9 +80,17 @@ const TopCarContainer: React.FC<TopCarContainerProps> = ({ refreshTrigger }) => 
       setLoading(true);
       setError(null);
       
-      const response = await fetch('http://localhost:3005/api/vehicles');
+      // Obtener token de autenticación
+      const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+      
+      const response = await fetch('http://localhost:3005/api/vehicles', {
+        headers: {
+          ...(token && { 'Authorization': `Bearer ${token}` }),
+        },
+      });
+      
       if (!response.ok) {
-        throw new Error('Error al modificar vehiculo');
+        throw new Error('Error al obtener vehículos');
       }
       
       const data = await response.json();
@@ -163,16 +171,84 @@ const TopCarContainer: React.FC<TopCarContainerProps> = ({ refreshTrigger }) => 
     if (!editingVehicle) return;
 
     try {
-      const response = await fetch(`http://localhost:3005/api/vehicles/${editingVehicle}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(editForm),
-      });
+      // Obtener token de autenticación
+      const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+      
+      // Probar diferentes endpoints y métodos
+      let response;
+      let success = false;
+      
+      // Intentar 1: PUT en /vehicles/{id}
+      try {
+        response = await fetch(`http://localhost:3005/api/vehicles/${editingVehicle}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token && { 'Authorization': `Bearer ${token}` }),
+          },
+          body: JSON.stringify(editForm),
+        });
+        if (response.ok) success = true;
+      } catch (e) {
+        console.log('PUT falló, probando POST...');
+      }
+      
+      // Intentar 2: POST en /vehicles/{id}
+      if (!success) {
+        try {
+          response = await fetch(`http://localhost:3005/api/vehicles/${editingVehicle}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token && { 'Authorization': `Bearer ${token}` }),
+            },
+            body: JSON.stringify(editForm),
+          });
+          if (response.ok) success = true;
+        } catch (e) {
+          console.log('POST en /vehicles/{id} falló, probando /vehicles/update...');
+        }
+      }
+      
+      // Intentar 3: POST en /vehicles/update
+      if (!success) {
+        try {
+          response = await fetch(`http://localhost:3005/api/vehicles/update`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token && { 'Authorization': `Bearer ${token}` }),
+            },
+            body: JSON.stringify({ id: editingVehicle, ...editForm }),
+          });
+          if (response.ok) success = true;
+        } catch (e) {
+          console.log('POST en /vehicles/update falló, probando /vehicles/edit...');
+        }
+      }
+      
+      // Intentar 4: POST en /vehicles/edit
+      if (!success) {
+        try {
+          response = await fetch(`http://localhost:3005/api/vehicles/edit`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token && { 'Authorization': `Bearer ${token}` }),
+            },
+            body: JSON.stringify({ id: editingVehicle, ...editForm }),
+          });
+          if (response.ok) success = true;
+        } catch (e) {
+          console.log('POST en /vehicles/edit falló');
+        }
+      }
 
-      if (!response.ok) {
-        throw new Error('Error al actualizar el vehículo');
+      if (!success && response) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Error al actualizar el vehículo. Status: ${response.status}`);
+      } else if (!success) {
+        throw new Error('No se pudo encontrar un endpoint válido para actualizar vehículos');
       }
 
       // Actualizar la lista local de vehículos
@@ -201,12 +277,19 @@ const TopCarContainer: React.FC<TopCarContainerProps> = ({ refreshTrigger }) => 
     }
 
     try {
+      // Obtener token de autenticación
+      const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+      
       const response = await fetch(`http://localhost:3005/api/vehicles/${vehicleId}`, {
         method: 'DELETE',
+        headers: {
+          ...(token && { 'Authorization': `Bearer ${token}` }),
+        },
       });
 
       if (!response.ok) {
-        throw new Error('Error al eliminar el vehículo');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Error al eliminar el vehículo');
       }
 
       // Remover el vehículo de la lista local
